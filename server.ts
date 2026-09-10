@@ -27,7 +27,7 @@ declare global {
 const pendingOrders = new Set<string>();
 
 // Middleware: Authenticate Session Token
-function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.headers['x-session-token'] as string);
 
@@ -36,19 +36,24 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
     return;
   }
 
-  const user = db.getUserByToken(token);
-  if (!user) {
-    res.status(401).json({ error: 'Sesi berakhir, silakan login kembali' });
-    return;
-  }
+  try {
+    const user = await db.getUserByToken(token);
+    if (!user) {
+      res.status(401).json({ error: 'Sesi berakhir, silakan login kembali' });
+      return;
+    }
 
-  if (user.status === 'suspended' || user.isBlocked) {
-    res.status(403).json({ error: 'Akun Anda telah dinonaktifkan oleh administrator' });
-    return;
-  }
+    if (user.status === 'suspended' || user.isBlocked) {
+      res.status(403).json({ error: 'Akun Anda telah dinonaktifkan oleh administrator' });
+      return;
+    }
 
-  req.user = user;
-  next();
+    req.user = user;
+    next();
+  } catch (err: any) {
+    console.error('Auth middleware error:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan server saat memeriksa sesi' });
+  }
 }
 
 // Middleware: Require Admin Role
@@ -73,7 +78,7 @@ app.get('/api/settings', (req: Request, res: Response) => {
 });
 
 // Register
-app.post('/api/auth/register', (req: Request, res: Response) => {
+app.post('/api/auth/register', async (req: Request, res: Response) => {
   try {
     const { username, email, password, confirmPassword } = req.body;
 
@@ -110,7 +115,7 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
     }
 
     const newUser = db.createUser(username, email, password);
-    const token = db.createSession(newUser.id);
+    const token = await db.createSession(newUser.id);
 
     res.status(201).json({
       message: 'Pendaftaran berhasil!',
@@ -124,7 +129,7 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
 });
 
 // Login
-app.post('/api/auth/login', (req: Request, res: Response) => {
+app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
     const { identifier, password } = req.body;
 
@@ -149,7 +154,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
       return;
     }
 
-    const token = db.createSession(userRecord.id);
+    const token = await db.createSession(userRecord.id);
     const { passwordHash: _, salt: __, ...publicUser } = userRecord;
 
     res.json({
@@ -199,11 +204,11 @@ app.post('/api/auth/sync-role', authMiddleware, async (req: Request, res: Respon
 });
 
 // Logout
-app.post('/api/auth/logout', (req: Request, res: Response) => {
+app.post('/api/auth/logout', async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.headers['x-session-token'] as string);
   if (token) {
-    db.deleteSession(token);
+    await db.deleteSession(token);
   }
   res.json({ message: 'Logout berhasil' });
 });
@@ -1167,20 +1172,6 @@ app.post('/api/admin/settings', adminMiddleware, handleSaveAdminSettings);
 app.get('/api/admin/logs', adminMiddleware, (req: Request, res: Response) => {
   const logs = db.getAdminLogs();
   res.json({ logs });
-});
-
-// ==========================================
-// AZRYLSTORE API ERROR HANDLER
-// ==========================================
-// Always return JSON for API errors so the frontend never tries to parse
-// Vercel's plain-text 500 page as JSON.
-app.use('/api', (err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('[API ERROR]', err);
-  if (res.headersSent) {
-    next(err);
-    return;
-  }
-  res.status(500).json({ error: err?.message || 'Terjadi kesalahan server' });
 });
 
 // ==========================================
