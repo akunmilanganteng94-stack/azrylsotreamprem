@@ -81,6 +81,14 @@ export const AdminView: React.FC = () => {
   const [selectedUserForPass, setSelectedUserForPass] = useState<AdminUserItem | null>(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
 
+  // User Delete Modal
+  const [deleteUserModalOpen, setDeleteUserModalOpen] = useState(false);
+  const [selectedUserForDelete, setSelectedUserForDelete] = useState<AdminUserItem | null>(null);
+
+  // Bulk Cleanup (delete all non-admin users) Modal
+  const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+
   // Orders State
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'REFUNDED'>('ALL');
@@ -366,6 +374,54 @@ export const AdminView: React.FC = () => {
       showToast('Terjadi kesalahan jaringan', 'error');
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  // Handle Delete Single User
+  const handleDeleteUserSubmit = async () => {
+    if (!selectedUserForDelete) return;
+    setActionLoadingId(selectedUserForDelete.id);
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUserForDelete.id}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || `Pengguna @${selectedUserForDelete.username} berhasil dihapus`);
+        setDeleteUserModalOpen(false);
+        setSelectedUserForDelete(null);
+        fetchUsers();
+      } else {
+        showToast(data.error || 'Gagal menghapus pengguna', 'error');
+      }
+    } catch (err) {
+      showToast('Terjadi kesalahan jaringan', 'error');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Handle Bulk Cleanup (delete all users except admin accounts)
+  const handleCleanupUsersSubmit = async () => {
+    setCleanupLoading(true);
+    try {
+      const res = await fetch('/api/admin/users/cleanup', {
+        method: 'POST',
+        headers: authHeaders,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || `${data.deletedCount || 0} pengguna berhasil dihapus`);
+        setCleanupModalOpen(false);
+        fetchUsers();
+      } else {
+        showToast(data.error || 'Gagal membersihkan daftar pengguna', 'error');
+      }
+    } catch (err) {
+      showToast('Terjadi kesalahan jaringan', 'error');
+    } finally {
+      setCleanupLoading(false);
     }
   };
 
@@ -979,6 +1035,15 @@ export const AdminView: React.FC = () => {
                 className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50/50 text-xs focus:outline-none focus:border-purple-600 focus:bg-white transition-all"
               />
             </div>
+
+            <button
+              onClick={() => setCleanupModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200"
+              title="Hapus semua pengguna kecuali akun admin"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus Semua User</span>
+            </button>
           </div>
 
           {/* Users Table / Cards */}
@@ -1074,7 +1139,7 @@ export const AdminView: React.FC = () => {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-purple-100">
+                    <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 pt-2 border-t border-purple-100`}>
                       <button
                         onClick={() => {
                           setSelectedUserForBalance(u);
@@ -1104,28 +1169,43 @@ export const AdminView: React.FC = () => {
                       </button>
 
                       {!isAdmin ? (
-                        <button
-                          disabled={actionLoadingId === u.id}
-                          onClick={() => handleToggleBlock(u)}
-                          className={`flex items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-[11px] font-bold transition-all border ${
-                            isBlocked
-                              ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                              : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
-                          }`}
-                          title={isBlocked ? 'Buka Blokir' : 'Blokir Pengguna'}
-                        >
-                          {isBlocked ? (
-                            <>
-                              <Unlock className="w-3.5 h-3.5" />
-                              <span>Buka</span>
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-3.5 h-3.5" />
-                              <span>Blokir</span>
-                            </>
-                          )}
-                        </button>
+                        <>
+                          <button
+                            disabled={actionLoadingId === u.id}
+                            onClick={() => handleToggleBlock(u)}
+                            className={`flex items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-[11px] font-bold transition-all border ${
+                              isBlocked
+                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                            }`}
+                            title={isBlocked ? 'Buka Blokir' : 'Blokir Pengguna'}
+                          >
+                            {isBlocked ? (
+                              <>
+                                <Unlock className="w-3.5 h-3.5" />
+                                <span>Buka</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-3.5 h-3.5" />
+                                <span>Blokir</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            disabled={actionLoadingId === u.id}
+                            onClick={() => {
+                              setSelectedUserForDelete(u);
+                              setDeleteUserModalOpen(true);
+                            }}
+                            className="flex items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-[11px] font-bold transition-all border bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200"
+                            title="Hapus Pengguna"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Hapus</span>
+                          </button>
+                        </>
                       ) : (
                         <div className="flex items-center justify-center py-2 px-1.5 text-[11px] font-bold text-purple-400">
                           Utama
@@ -2006,6 +2086,90 @@ export const AdminView: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-md shadow-amber-600/20 disabled:opacity-50"
               >
                 {actionLoadingId === selectedUserForPass.id ? 'Menyimpan...' : 'Perbarui Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Single User Modal */}
+      {deleteUserModalOpen && selectedUserForDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-purple-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-purple-100">
+              <h3 className="text-base font-extrabold text-purple-950 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                <span>Hapus Pengguna</span>
+              </h3>
+              <button
+                onClick={() => setDeleteUserModalOpen(false)}
+                className="p-1 rounded-xl text-purple-400 hover:text-purple-700"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-purple-700">
+                Yakin ingin menghapus akun <strong className="text-purple-950">@{selectedUserForDelete.username}</strong> ({selectedUserForDelete.email})? Semua data akun ini akan hilang permanen dan tidak bisa dikembalikan.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-purple-100">
+              <button
+                onClick={() => setDeleteUserModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-purple-700 hover:bg-purple-50"
+              >
+                Batal
+              </button>
+              <button
+                disabled={actionLoadingId === selectedUserForDelete.id}
+                onClick={handleDeleteUserSubmit}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 disabled:opacity-50"
+              >
+                {actionLoadingId === selectedUserForDelete.id ? 'Menghapus...' : 'Ya, Hapus Pengguna'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Cleanup Users Modal */}
+      {cleanupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-purple-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-purple-100">
+              <h3 className="text-base font-extrabold text-purple-950 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                <span>Hapus Semua Pengguna</span>
+              </h3>
+              <button
+                onClick={() => setCleanupModalOpen(false)}
+                className="p-1 rounded-xl text-purple-400 hover:text-purple-700"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-purple-700">
+                Ini akan menghapus <strong className="text-purple-950">semua pengguna</strong> kecuali akun admin (mis. <strong className="text-purple-950">admin</strong> dan <strong className="text-purple-950">azryll</strong>). Tindakan ini permanen dan tidak bisa dibatalkan.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-purple-100">
+              <button
+                onClick={() => setCleanupModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-purple-700 hover:bg-purple-50"
+              >
+                Batal
+              </button>
+              <button
+                disabled={cleanupLoading}
+                onClick={handleCleanupUsersSubmit}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 disabled:opacity-50"
+              >
+                {cleanupLoading ? 'Menghapus...' : 'Ya, Hapus Semua'}
               </button>
             </div>
           </div>
