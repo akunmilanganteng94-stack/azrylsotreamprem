@@ -23,6 +23,7 @@ import {
   syncSessionToFirestore,
   fetchSessionFromFirestore,
   deleteSessionFromFirestore,
+  deleteUserFromFirestore,
   FirestoreUserRecord,
 } from './firebase.js';
 
@@ -500,6 +501,42 @@ class Database {
 
   getAllUsers(): User[] {
     return this.data.users.map(({ passwordHash: _, salt: __, ...u }) => u);
+  }
+
+  // Delete a single user. Admin accounts (role === 'admin') are protected
+  // and can never be deleted from here.
+  async deleteUser(userId: string): Promise<{ success: boolean; error?: string; username?: string }> {
+    const user = this.getUserById(userId);
+    if (!user) {
+      return { success: false, error: 'Pengguna tidak ditemukan' };
+    }
+    if (user.role === 'admin') {
+      return { success: false, error: 'Akun administrator tidak dapat dihapus' };
+    }
+
+    this.data.users = this.data.users.filter((u) => u.id !== userId);
+    this.data.sessions = this.data.sessions.filter((s) => s.userId !== userId);
+    this.save();
+
+    await deleteUserFromFirestore(userId);
+
+    return { success: true, username: user.username };
+  }
+
+  // Delete every user except admin accounts (i.e. keeps only accounts with
+  // role === 'admin', such as 'admin' and 'azryll').
+  async deleteAllNonAdminUsers(): Promise<{ deletedCount: number }> {
+    const toDelete = this.data.users.filter((u) => u.role !== 'admin');
+    this.data.users = this.data.users.filter((u) => u.role === 'admin');
+    const deletingIds = new Set(toDelete.map((u) => u.id));
+    this.data.sessions = this.data.sessions.filter((s) => !deletingIds.has(s.userId));
+    this.save();
+
+    for (const u of toDelete) {
+      await deleteUserFromFirestore(u.id);
+    }
+
+    return { deletedCount: toDelete.length };
   }
 
   // Sessions

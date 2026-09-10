@@ -52,6 +52,14 @@ export async function syncUserToFirestore(user: FirestoreUserRecord): Promise<vo
   }
 }
 
+export async function deleteUserFromFirestore(userId: string): Promise<void> {
+  try {
+    await deleteDoc(doc(firestore, COLL_USERS, userId));
+  } catch (err: any) {
+    console.error(`[FIREBASE] Error deleting user ${userId} from Firestore:`, err.message);
+  }
+}
+
 export async function syncDepositToFirestore(deposit: Deposit): Promise<void> {
   try {
     const depositDocRef = doc(firestore, COLL_DEPOSITS, deposit.id);
