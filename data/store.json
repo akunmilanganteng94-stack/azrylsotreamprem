@@ -8,7 +8,7 @@
       "updatedAt": "2026-09-10T03:03:30.303Z",
       "salt": "0d2022d36b3f1c5b57d54988941af78f",
       "passwordHash": "a110555da166cd2828f3ce97e3fe6f7c1828d9ef1bdfeee4857b2034d3297455",
-      "balance": 0,
+      "balance": 700000,
       "isBlocked": false,
       "status": "active",
       "createdAt": "2026-09-10T02:54:07.944Z"
@@ -66,41 +66,46 @@
   ],
   "deposits": [
     {
-      "id": "DEP-136425799",
-      "confirmedAt": "2026-09-10T03:54:47.789Z",
-      "confirmedBy": "admin",
+      "proofNote": "Transfer QRIS JEJE via DANA",
+      "updatedAt": "2026-09-10T03:54:47.789Z",
+      "paymentMethod": "QRIS",
+      "amount": 1000,
+      "createdAt": "2026-09-10T03:48:56.425Z",
+      "username": "anjai",
+      "status": "APPROVED",
       "userId": "usr_1789012115674_qpzql",
       "payerName": "anjai",
-      "updatedAt": "2026-09-10T03:49:56.713Z",
-      "createdAt": "2026-09-10T03:48:56.425Z",
-      "status": "APPROVED",
-      "proofNote": "Transfer QRIS JEJE via DANA",
-      "username": "anjai",
-      "paymentMethod": "QRIS",
-      "amount": 1000
+      "confirmedBy": "admin",
+      "id": "DEP-136425799",
+      "confirmedAt": "2026-09-10T03:54:47.789Z"
     },
     {
-      "status": "PENDING",
-      "proofNote": "",
-      "amount": 700000,
-      "createdAt": "2026-09-10T03:54:15.008Z",
-      "updatedAt": "2026-09-10T03:54:20.425Z",
-      "username": "azryl",
+      "updatedAt": "2026-09-10T03:55:34.160Z",
+      "username": "anjai",
+      "id": "DEP-237713963",
+      "confirmedBy": "azryll",
+      "proofNote": "Transfer via QRIS - Bukti terlampir | Alasan tolak: Bukti transfer tidak valid atau dana belum masuk",
+      "confirmedAt": "2026-09-10T03:55:34.159Z",
+      "paymentMethod": "QRIS",
+      "createdAt": "2026-09-10T03:54:54.915Z",
+      "payerName": "ANJAI TESTER",
+      "amount": 25000,
+      "status": "REJECTED",
+      "userId": "usr_1789012115674_qpzql"
+    },
+    {
       "payerName": "azryl",
       "id": "DEP-455008638",
+      "status": "APPROVED",
+      "userId": "usr_1789008847944_9vcpl",
       "paymentMethod": "QRIS",
-      "userId": "usr_1789008847944_9vcpl"
-    },
-    {
-      "username": "anjai",
-      "status": "PENDING",
-      "amount": 25000,
-      "payerName": "ANJAI TESTER",
-      "paymentMethod": "QRIS",
-      "proofNote": "Transfer via QRIS - Bukti terlampir",
-      "createdAt": "2026-09-10T03:54:54.915Z",
-      "id": "DEP-237713963",
-      "userId": "usr_1789012115674_qpzql"
+      "proofNote": "",
+      "confirmedBy": "azryll",
+      "amount": 700000,
+      "updatedAt": "2026-09-10T03:55:37.094Z",
+      "confirmedAt": "2026-09-10T03:55:37.094Z",
+      "createdAt": "2026-09-10T03:54:15.008Z",
+      "username": "azryl"
     }
   ],
   "orders": [
@@ -159,62 +164,91 @@
   ],
   "transactions": [
     {
-      "id": "tx_1789012487788_6fwy",
-      "userId": "usr_1789012115674_qpzql",
-      "type": "DEPOSIT",
-      "amount": 1000,
-      "balanceBefore": 0,
-      "balanceAfter": 1000,
-      "reference": "DEP-136425799",
-      "description": "Deposit Rp1.000 via QRIS disetujui",
-      "createdAt": "2026-09-10T03:54:47.788Z"
-    },
-    {
       "balanceAfter": 99600,
       "balanceBefore": 100000,
-      "userId": "usr_admin",
-      "type": "ORDER_AM",
-      "amount": 400,
+      "description": "Pembelian AM Premium Bulk (1 akun)",
       "createdAt": "2026-09-10T03:09:35.933Z",
-      "id": "tx_1789009775933_xs5t",
       "reference": "BULK-1789009775933",
-      "description": "Pembelian AM Premium Bulk (1 akun)"
+      "type": "ORDER_AM",
+      "userId": "usr_admin",
+      "amount": 400,
+      "id": "tx_1789009775933_xs5t"
     },
     {
-      "amount": 10000,
       "id": "tx_1789012268328_n9y6",
-      "type": "ADMIN_ADJUST",
-      "balanceBefore": 0,
       "balanceAfter": 10000,
+      "userId": "usr_1789011305266_rj7oc",
+      "balanceBefore": 0,
+      "type": "ADMIN_ADJUST",
+      "amount": 10000,
       "description": "Penambahan saldo manual oleh admin",
       "createdAt": "2026-09-10T03:51:08.328Z",
-      "userId": "usr_1789011305266_rj7oc",
       "reference": "ADJ-1789012268328"
     },
     {
-      "userId": "usr_1789011305266_rj7oc",
-      "balanceAfter": 20000,
-      "id": "tx_1789012299577_fqp5",
-      "balanceBefore": 10000,
+      "type": "ADMIN_ADJUST",
       "createdAt": "2026-09-10T03:51:39.577Z",
-      "amount": 10000,
       "description": "Penambahan saldo manual oleh admin",
       "reference": "ADJ-1789012299577",
-      "type": "ADMIN_ADJUST"
+      "amount": 10000,
+      "userId": "usr_1789011305266_rj7oc",
+      "balanceAfter": 20000,
+      "balanceBefore": 10000,
+      "id": "tx_1789012299577_fqp5"
     },
     {
-      "createdAt": "2026-09-10T03:52:01.419Z",
-      "id": "tx_1789012321419_fwaq",
       "userId": "usr_1789011305266_rj7oc",
-      "description": "Pembelian AM Premium Bulk (1 akun)",
-      "reference": "BULK-1789012321419",
-      "type": "ORDER_AM",
       "balanceAfter": 19600,
       "amount": 400,
+      "reference": "BULK-1789012321419",
+      "createdAt": "2026-09-10T03:52:01.419Z",
+      "description": "Pembelian AM Premium Bulk (1 akun)",
+      "id": "tx_1789012321419_fwaq",
+      "type": "ORDER_AM",
       "balanceBefore": 20000
+    },
+    {
+      "id": "tx_1789012487788_6fwy",
+      "userId": "usr_1789012115674_qpzql",
+      "amount": 1000,
+      "balanceBefore": 0,
+      "description": "Deposit Rp1.000 via QRIS disetujui",
+      "balanceAfter": 1000,
+      "createdAt": "2026-09-10T03:54:47.788Z",
+      "reference": "DEP-136425799",
+      "type": "DEPOSIT"
+    },
+    {
+      "amount": 700000,
+      "type": "DEPOSIT",
+      "userId": "usr_1789008847944_9vcpl",
+      "balanceBefore": 0,
+      "id": "tx_1789012537093_61in",
+      "reference": "DEP-455008638",
+      "createdAt": "2026-09-10T03:55:37.093Z",
+      "description": "Deposit Rp700.000 via QRIS disetujui",
+      "balanceAfter": 700000
     }
   ],
   "admin_logs": [
+    {
+      "id": "log_1789012537094_moi1",
+      "adminId": "usr_admin",
+      "adminUsername": "azryll",
+      "action": "APPROVE_DEPOSIT",
+      "targetUser": "azryl",
+      "description": "Menyetujui deposit DEP-455008638 nominal Rp700.000 untuk @azryl",
+      "createdAt": "2026-09-10T03:55:37.094Z"
+    },
+    {
+      "id": "log_1789012534178_7vk7",
+      "adminId": "usr_admin",
+      "adminUsername": "azryll",
+      "action": "REJECT_DEPOSIT",
+      "targetUser": "anjai",
+      "description": "Menolak deposit DEP-237713963 nominal Rp25.000 untuk @anjai",
+      "createdAt": "2026-09-10T03:55:34.178Z"
+    },
     {
       "id": "log_1789012487789_6p65",
       "adminId": "usr_admin",
@@ -289,6 +323,12 @@
       "userId": "usr_admin",
       "createdAt": "2026-09-10T03:54:47.754Z",
       "expiresAt": "2026-09-17T03:54:47.754Z"
+    },
+    {
+      "token": "0eca9047bbcd08860345b651eddaa044eb0ad89a6cccbb05297f9b8e0517646b",
+      "userId": "usr_1789011305266_rj7oc",
+      "createdAt": "2026-09-10T04:06:27.821Z",
+      "expiresAt": "2026-09-17T04:06:27.821Z"
     }
   ]
 }
