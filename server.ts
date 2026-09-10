@@ -1,7 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 import { db } from './server/db.js';
 import { callAmSendApi, callAmVerifApi, callAmBulkApi } from './server/amService.js';
 import { User } from './src/types.js';
@@ -1179,6 +1178,14 @@ app.get('/api/admin/logs', adminMiddleware, (req: Request, res: Response) => {
 // ==========================================
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    // Loaded dynamically (only in local dev) so that 'vite' (and its
+    // native rollup binary) is never touched when this file is bundled
+    // for the production/serverless build (e.g. Vercel), which was
+    // causing a crash on every request ("Cannot find module
+    // @rollup/rollup-linux-x64-gnu") because the old static top-level
+    // import was evaluated even though createViteServer was never called
+    // in production.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
