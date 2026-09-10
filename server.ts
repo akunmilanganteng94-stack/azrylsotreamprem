@@ -27,7 +27,7 @@ declare global {
 const pendingOrders = new Set<string>();
 
 // Middleware: Authenticate Session Token
-async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.headers['x-session-token'] as string);
 
@@ -36,17 +36,7 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  // Vercel can execute each request in a fresh serverless instance.
-  // If the user is not in this instance's memory yet, hydrate users from Firestore.
-  let user = db.getUserByToken(token);
-  if (!user) {
-    const userId = db.getUserIdFromToken(token);
-    if (userId) {
-      await db.refreshUsersFromFirestore();
-      user = db.getUserByToken(token);
-    }
-  }
-
+  const user = db.getUserByToken(token);
   if (!user) {
     res.status(401).json({ error: 'Sesi berakhir, silakan login kembali' });
     return;
@@ -134,12 +124,8 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
 });
 
 // Login
-app.post('/api/auth/login', async (req: Request, res: Response) => {
+app.post('/api/auth/login', (req: Request, res: Response) => {
   try {
-    // Load the latest users before checking credentials so Vercel cold starts
-    // can authenticate accounts stored in Firestore.
-    await db.refreshUsersFromFirestore();
-
     const { identifier, password } = req.body;
 
     if (!identifier || !password) {
@@ -1181,6 +1167,20 @@ app.post('/api/admin/settings', adminMiddleware, handleSaveAdminSettings);
 app.get('/api/admin/logs', adminMiddleware, (req: Request, res: Response) => {
   const logs = db.getAdminLogs();
   res.json({ logs });
+});
+
+// ==========================================
+// AZRYLSTORE API ERROR HANDLER
+// ==========================================
+// Always return JSON for API errors so the frontend never tries to parse
+// Vercel's plain-text 500 page as JSON.
+app.use('/api', (err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[API ERROR]', err);
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  res.status(500).json({ error: err?.message || 'Terjadi kesalahan server' });
 });
 
 // ==========================================
