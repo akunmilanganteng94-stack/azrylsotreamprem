@@ -1,5 +1,3 @@
-import app from '../server';
+import app from '../server.js';
 
-// Vercel deploys this Express app as a Node.js Function.
-// Keep the app export untouched so every existing /api/* route is handled by Express.
 export default app;
