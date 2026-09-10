@@ -500,37 +500,65 @@ class Database {
   }
 
   // Sessions
+  // Vercel functions are stateless and their filesystem is read-only.
+  // Use a signed, self-contained token so login survives cold starts/redeploys.
+  private getSessionSecret(): string {
+    return process.env.SESSION_SECRET || 'azrylstore-session-secret-2026';
+  }
+
   createSession(userId: string): string {
-    const token = crypto.randomBytes(32).toString('hex');
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    this.data.sessions.push({
-      token,
-      userId,
-      createdAt: now.toISOString(),
-      expiresAt,
-    });
-    this.save();
-    return token;
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = now + 7 * 24 * 60 * 60;
+    const payload = Buffer.from(JSON.stringify({ userId, exp: expiresAt }), 'utf8').toString('base64url');
+    const signature = crypto
+      .createHmac('sha256', this.getSessionSecret())
+      .update(payload)
+      .digest('base64url');
+    return `${payload}.${signature}`;
+  }
+
+  getUserIdFromToken(token: string): string | null {
+    try {
+      if (!token) return null;
+      const [payload, signature] = token.split('.');
+      if (!payload || !signature) return null;
+
+      const expected = crypto
+        .createHmac('sha256', this.getSessionSecret())
+        .update(payload)
+        .digest('base64url');
+
+      if (
+        signature.length !== expected.length ||
+        !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+      ) {
+        return null;
+      }
+
+      const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+      if (!data?.userId || !data?.exp || data.exp < Math.floor(Date.now() / 1000)) {
+        return null;
+      }
+
+      return String(data.userId);
+    } catch {
+      return null;
+    }
   }
 
   getUserByToken(token: string): User | null {
-    if (!token) return null;
-    const session = this.data.sessions.find((s) => s.token === token);
-    if (!session) return null;
-    if (new Date(session.expiresAt) < new Date()) {
-      this.deleteSession(token);
-      return null;
-    }
-    const user = this.getUserById(session.userId);
+    const userId = this.getUserIdFromToken(token);
+    if (!userId) return null;
+
+    const user = this.getUserById(userId);
     if (!user) return null;
+
     const { passwordHash: _, salt: __, ...publicUser } = user;
     return publicUser;
   }
 
-  deleteSession(token: string): void {
-    this.data.sessions = this.data.sessions.filter((s) => s.token !== token);
-    this.save();
+  deleteSession(_token: string): void {
+    // Stateless session: nothing needs to be deleted server-side.
   }
 
   // Deposits
