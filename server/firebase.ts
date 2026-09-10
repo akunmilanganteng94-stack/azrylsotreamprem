@@ -8,6 +8,7 @@ import {
   collection,
   getDocs,
   onSnapshot,
+  deleteDoc,
   Firestore,
 } from 'firebase/firestore';
 import { User, Deposit, Order, Transaction, StoreSettings } from '../src/types.js';
@@ -33,6 +34,7 @@ const COLL_DEPOSITS = 'deposits';
 const COLL_ORDERS = 'orders';
 const COLL_TRANSACTIONS = 'transactions';
 const COLL_SETTINGS = 'settings';
+const COLL_SESSIONS = 'sessions';
 
 export interface FirestoreUserRecord extends Partial<User> {
   id: string;
@@ -74,6 +76,46 @@ export async function syncTransactionToFirestore(tx: Transaction): Promise<void>
     await setDoc(txDocRef, { ...tx }, { merge: true });
   } catch (err: any) {
     console.error(`[FIREBASE] Error saving transaction ${tx.id} to Firestore:`, err.message);
+  }
+}
+
+// Session persistence (needed so login sessions survive across serverless
+// function instances, e.g. on Vercel, where in-memory state is not shared
+// between invocations).
+export interface FirestoreSessionRecord {
+  token: string;
+  userId: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export async function syncSessionToFirestore(session: FirestoreSessionRecord): Promise<void> {
+  try {
+    const sessionDocRef = doc(firestore, COLL_SESSIONS, session.token);
+    await setDoc(sessionDocRef, { ...session }, { merge: true });
+  } catch (err: any) {
+    console.error(`[FIREBASE] Error saving session to Firestore:`, err.message);
+  }
+}
+
+export async function fetchSessionFromFirestore(token: string): Promise<FirestoreSessionRecord | null> {
+  try {
+    const sessionSnap = await getDoc(doc(firestore, COLL_SESSIONS, token));
+    if (sessionSnap.exists()) {
+      return sessionSnap.data() as FirestoreSessionRecord;
+    }
+    return null;
+  } catch (err: any) {
+    console.error(`[FIREBASE] Error fetching session from Firestore:`, err.message);
+    return null;
+  }
+}
+
+export async function deleteSessionFromFirestore(token: string): Promise<void> {
+  try {
+    await deleteDoc(doc(firestore, COLL_SESSIONS, token));
+  } catch (err: any) {
+    console.error(`[FIREBASE] Error deleting session from Firestore:`, err.message);
   }
 }
 

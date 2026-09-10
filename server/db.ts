@@ -20,6 +20,9 @@ import {
   listenToFirestoreUsers,
   listenToFirestoreSettings,
   listenToFirestoreDeposits,
+  syncSessionToFirestore,
+  fetchSessionFromFirestore,
+  deleteSessionFromFirestore,
   FirestoreUserRecord,
 } from './firebase.js';
 
@@ -500,37 +503,70 @@ class Database {
   }
 
   // Sessions
-  createSession(userId: string): string {
+  // NOTE: sessions are also persisted to Firestore (in addition to the local
+  // in-memory/file cache) because on stateless serverless hosts (e.g. Vercel)
+  // each request can be handled by a different, freshly-started server
+  // instance that does not share memory with the one that created the
+  // session. Without this, a user could log in successfully but immediately
+  // get "session expired" on the very next request. This mirrors the same
+  // Firestore-backed persistence already used for users/deposits/orders.
+  async createSession(userId: string): Promise<string> {
     const token = crypto.randomBytes(32).toString('hex');
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    this.data.sessions.push({
+    const sessionRecord: SessionRecord = {
       token,
       userId,
       createdAt: now.toISOString(),
       expiresAt,
-    });
+    };
+    this.data.sessions.push(sessionRecord);
     this.save();
+    // Await so the session is guaranteed to be readable from Firestore by
+    // the time the client's follow-up request (e.g. /api/auth/me) reaches
+    // any server instance.
+    await syncSessionToFirestore(sessionRecord);
     return token;
   }
 
-  getUserByToken(token: string): User | null {
+  async getUserByToken(token: string): Promise<User | null> {
     if (!token) return null;
-    const session = this.data.sessions.find((s) => s.token === token);
+    let session = this.data.sessions.find((s) => s.token === token);
+
+    if (!session) {
+      // Not found in this instance's local memory (likely a different
+      // serverless instance than the one that created it) — fall back to
+      // Firestore, which is shared across all instances.
+      const remoteSession = await fetchSessionFromFirestore(token);
+      if (remoteSession) {
+        session = remoteSession;
+        this.data.sessions.push(remoteSession);
+        this.save();
+      }
+    }
+
     if (!session) return null;
     if (new Date(session.expiresAt) < new Date()) {
-      this.deleteSession(token);
+      await this.deleteSession(token);
       return null;
     }
-    const user = this.getUserById(session.userId);
+
+    let user = this.getUserById(session.userId);
+    if (!user) {
+      // User not yet present in this instance's local cache — try to pull
+      // the latest users from Firestore before giving up.
+      await this.refreshUsersFromFirestore();
+      user = this.getUserById(session.userId);
+    }
     if (!user) return null;
     const { passwordHash: _, salt: __, ...publicUser } = user;
     return publicUser;
   }
 
-  deleteSession(token: string): void {
+  async deleteSession(token: string): Promise<void> {
     this.data.sessions = this.data.sessions.filter((s) => s.token !== token);
     this.save();
+    await deleteSessionFromFirestore(token);
   }
 
   // Deposits
