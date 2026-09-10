@@ -182,26 +182,6 @@ app.get('/api/auth/me', authMiddleware, async (req: Request, res: Response) => {
   res.json({ user: publicUser });
 });
 
-// Force sync role from Firebase Firestore
-app.post('/api/auth/sync-role', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    await db.refreshUsersFromFirestore();
-    const user = db.getUserById(req.user!.id);
-    if (!user) {
-      res.status(404).json({ error: 'User tidak ditemukan' });
-      return;
-    }
-    const { passwordHash: _, salt: __, ...publicUser } = user;
-    res.json({
-      message: 'Sinkronisasi role dari Firebase berhasil',
-      user: publicUser,
-      isAdmin: publicUser.role === 'admin',
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Gagal sinkronisasi dari Firebase: ' + err.message });
-  }
-});
-
 // Logout
 app.post('/api/auth/logout', async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
@@ -958,6 +938,47 @@ app.post('/api/admin/users/:id/reset-password', adminMiddleware, (req: Request, 
   );
 
   res.json({ message: `Password @${user.username} berhasil direset.` });
+});
+
+// Admin Delete Single User (admin accounts are protected)
+app.delete('/api/admin/users/:id', adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const target = db.getUserById(req.params.id);
+    const result = await db.deleteUser(req.params.id);
+    if (!result.success) {
+      res.status(400).json({ error: result.error || 'Gagal menghapus pengguna' });
+      return;
+    }
+    db.addAdminLog(
+      req.user!.id,
+      req.user!.username,
+      'DELETE_USER',
+      `Menghapus akun @${result.username}`,
+      result.username
+    );
+    res.json({ message: `Pengguna @${result.username} berhasil dihapus`, deletedId: req.params.id });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Terjadi kesalahan server saat menghapus pengguna' });
+  }
+});
+
+// Admin Bulk Cleanup: delete every user except admin accounts
+app.post('/api/admin/users/cleanup', adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const result = await db.deleteAllNonAdminUsers();
+    db.addAdminLog(
+      req.user!.id,
+      req.user!.username,
+      'DELETE_USER',
+      `Membersihkan daftar pengguna: menghapus ${result.deletedCount} akun (menyisakan akun admin)`
+    );
+    res.json({
+      message: `${result.deletedCount} pengguna berhasil dihapus. Akun admin tetap aman.`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Terjadi kesalahan server saat membersihkan daftar pengguna' });
+  }
 });
 
 // Admin Deposits List
